@@ -16,6 +16,12 @@ app.publish/
 publish/
 
 # ------------------------------------------------------------------
+# Release packages (built by tools\make_packages.py) - generated,
+# reproducible from build_publish.cmd + make_packages.py, so not in git.
+# ------------------------------------------------------------------
+dist/
+
+# ------------------------------------------------------------------
 # Build & test logs (contain local absolute paths / machine names)
 # ------------------------------------------------------------------
 *.log

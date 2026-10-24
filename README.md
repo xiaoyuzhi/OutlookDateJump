@@ -36,11 +36,40 @@
 
 ## 安装与发布
 
+项目提供两个可直接分发的版本，由 `tools/make_packages.py` 一键产出（`dist/` 目录）：
+
+| 版本 | 包名 | 内容 | 适用场景 |
+|------|------|------|----------|
+| **安装版** | `dist/OutlookDateJump-<ver>-Setup.zip` | ClickOnce `setup.exe` + `.vsto` + `Application Files` + 自签证书 `.cer` + 使用说明 | 分发给普通用户，走标准安装/卸载流程 |
+| **绿色版** | `dist/OutlookDateJump-<ver>-Portable.zip` | 免安装目录：`|vstolocal` 清单 + DLL + 注册/卸载脚本 + 使用说明 | 免管理员权限、免安装、目录可整体搬移 |
+
+### 安装版（ClickOnce）
+
 | 操作 | 方式 |
 |------|------|
-| 安装 | 双击 `OutlookDateJump/bin/Release/app.publish/setup.exe` |
-| 卸载 | Windows「设置 → 应用」中卸载 Outlook 日期跳转 |
-| 重新构建 | 双击 `OutlookDateJump/build_publish.cmd`（自动定位 MSBuild，无需开发者命令提示符） |
+| 安装 | 解压后双击 `setup.exe` |
+| 卸载 | Windows「设置 → 应用」中卸载「Outlook 日期跳转」 |
+| 运行前提 | Outlook 桌面版 + .NET Framework 4.7.2+ + **VSTO Runtime 4.0**；缺 VSTO Runtime 时表现为「装成功但功能区没按钮」 |
+| 证书 | 自签名 `CN=OutlookDateJump`，首次会提示「未知发布者」→ 点「仍要运行」；或先导入同目录 `OutlookDateJump.cer` 到受信任根证书 |
+
+### 绿色版（免安装 / 便携）
+
+| 操作 | 方式 |
+|------|------|
+| 注册 | 右键 `Register-ODJ.ps1` →「使用 PowerShell 运行」；或 `powershell -ExecutionPolicy Bypass -File .\Register-ODJ.ps1` |
+| 卸载 | 运行 `Unregister-ODJ.ps1`，再删除整个文件夹 |
+| 生效 | 注册后需**完全退出**并重启 Outlook |
+| 特点 | 只写 `HKCU`，无需管理员权限；清单用相对 codebase，整个目录可搬到任意路径；移动后重跑注册脚本即可 |
+
+> 执行策略提示：若直接运行脚本被系统 ExecutionPolicy 拦下，用上面带 `-ExecutionPolicy Bypass` 的命令即可，无需改系统全局设置。
+
+### 构建与打包
+
+| 操作 | 方式 |
+|------|------|
+| 重新构建 + ClickOnce 发布 | 双击 `OutlookDateJump/build_publish.cmd`（自动定位 MSBuild、递增 `tools/revision.txt`，无需开发者命令提示符） |
+| 生成两个分发包 | `python tools/make_packages.py`（需先跑过 build_publish.cmd） |
+| 编译检查 | `tools/compile_check.cmd`（输出到 `obj\scratch\`，不触碰被 Outlook 锁定的 `bin\Release`） |
 | 发布产物 | `OutlookDateJump/bin/Release/app.publish/`（setup.exe + OutlookDateJump.vsto） |
 
 构建即自动注册到当前用户 Outlook（HKCU，LoadBehavior=3），重启 Outlook 即生效；
@@ -228,6 +257,9 @@ if (view != null) view.GoToDate(date);
 `OutlookDateJump.ps1` 是功能等同的 PowerShell 版（WPF 内联 XAML + COM 跳转，无需安装任何东西），
 适合无法安装加载项的机器；桌面快捷方式 `Outlook日期跳转.cmd` 一键启动。
 
+> 与「绿色版」的区别：绿色版是**真正的加载项**（功能区里有「跳转日期」按钮），
+> 只是免安装；本 PowerShell 版是独立小工具（不驻留功能区，需手动启动窗口）。
+
 ## 项目结构
 
 ```
@@ -241,12 +273,17 @@ OutlookSelectDate/
 ├── lib/
 │   ├── HandyControl.dll       WPF 组件库（csproj 以相对路径引用，克隆即可编译）
 │   └── HandyControl-LICENSE.txt   HandyControl 的 MIT 许可证全文
+├── OutlookDateJump.cer         自签名代码签名证书（**仅公钥**，供用户导入以信任安装包）
 ├── tools/
 │   ├── build_publish.cmd      一键构建 + ClickOnce 发布（正式产物）
 │   ├── compile_check.cmd      编译检查（输出到 obj\scratch，不碰 bin\Release）
+│   ├── make_packages.py       产出「安装版 + 绿色版」两个分发 zip（dist/）
 │   ├── make_icon.ps1          由 Calendar.png 生成 64×64 CalendarIcon.png
 │   ├── verify_uia.py          无头验证：UIA 触发按钮 + 实测弹窗
 │   ├── verify_combos.py       无头验证：三下拉滑动窗口 ±5 行为
+│   ├── verify_calendar_ribbon.py  无头验证：切日历模块 -> 找按钮 -> 开弹窗量尺寸
+│   ├── diag_ribbon.py         诊断：列出功能区按钮 / 命中「跳转日期」
+│   ├── diag_tabs.py           诊断：列出功能区选项卡与模块入口
 │   └── revision.txt           构建版本号（ASCII 文件，递增）
 ├── OutlookDateJump.sln        解决方案
 ├── poc_gotodate.ps1           GoToDate 早期概念验证脚本
