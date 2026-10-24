@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "一次日期跳转的调用时序",
+    "locale": "zh-CN",
+    "output": "docs/diagrams/sequence.html",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "participants": [
+    { "id": "user", "type": "external", "label": "用户", "sublabel": "日历视图" },
+    { "id": "ribbon", "type": "frontend", "label": "功能区", "sublabel": "Ribbon XML 按钮" },
+    { "id": "rb1", "type": "backend", "label": "Ribbon1", "sublabel": "回调处理" },
+    { "id": "win", "type": "frontend", "label": "选择窗口", "sublabel": "WPF 模态" },
+    { "id": "ol", "type": "backend", "label": "Outlook COM", "sublabel": "COM 视图" }
+  ],
+  "segments": [
+    { "from": 150, "to": 250, "label": "触发" },
+    { "from": 260, "to": 360, "label": "选择" },
+    { "from": 370, "to": 445, "label": "跳转" }
+  ],
+  "messages": [
+    { "id": "click", "from": "user", "to": "ribbon", "y": 170, "label": "点击「跳转日期」", "variant": "default" },
+    { "id": "onaction", "from": "ribbon", "to": "rb1", "y": 200, "label": "onAction(control)", "variant": "emphasis" },
+    { "id": "getexplorer", "from": "rb1", "to": "ol", "y": 230, "label": "ActiveExplorer()", "variant": "default" },
+    { "id": "explorer-ref", "from": "ol", "to": "rb1", "y": 258, "label": "Explorer 引用", "variant": "return" },
+    { "id": "showdialog", "from": "rb1", "to": "win", "y": 290, "label": "ShowDialog(初始=今天)", "variant": "emphasis" },
+    { "id": "render-win", "from": "win", "to": "user", "y": 318, "label": "显示年/月/日与日历", "variant": "return" },
+    { "id": "pick", "from": "user", "to": "win", "y": 346, "label": "选择目标日期（三处联动）", "variant": "default" },
+    { "id": "result", "from": "win", "to": "rb1", "y": 374, "label": "DialogResult=true · SelectedDate", "variant": "return" },
+    { "id": "gotodate", "from": "rb1", "to": "ol", "y": 402, "label": "CalendarView.GoToDate(date)", "variant": "emphasis" },
+    { "id": "done", "from": "ol", "to": "user", "y": 430, "label": "日历定位到目标日期", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "ribbon", "from": 165, "to": 210, "type": "frontend" },
+    { "participant": "rb1", "from": 204, "to": 416, "type": "backend" },
+    { "participant": "win", "from": 294, "to": 380, "type": "frontend" },
+    { "participant": "ol", "from": 224, "to": 436, "type": "backend" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "同步模态",
+      "items": [
+        "ShowDialog 是同步模态调用，选择完成前回调不返回",
+        "窗口以 DialogResult 与 SelectedDate 双值返回"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "COM 交互",
+      "items": [
+        "CurrentView 的 RCW 绝不提前释放：Outlook 跨调用复用它，释放后再次取会拿到失效对象",
+        "顺序必须是先 Apply() 再 GoToDate；重复 Apply 会把视图恢复成已保存的定义"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "跳转调度",
+      "items": [
+        "弹窗内零 Outlook COM 调用：只选日期 + 关窗，模态期间 GoToDate 会被静默丢弃",
+        "ShowDialog 返回后立刻跳第一拍（带 Apply），成功即结束、不闪屏",
+        "仅首拍失败才启动 WinForms Timer 120ms 兜底重试（最多 10 拍）"
+      ]
+    }
+  ]
+}

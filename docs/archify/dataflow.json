@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "日期数据流：从选择到视图定位",
+    "locale": "zh-CN",
+    "output": "docs/diagrams/dataflow.html",
+    "viewBox": [1120, 520],
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "stages": [
+    { "label": "输入源" },
+    { "label": "加载项处理" },
+    { "label": "COM 调用" },
+    { "label": "视图状态" },
+    { "label": "用户可见" }
+  ],
+  "nodes": [
+    { "id": "clock", "type": "external", "label": "系统时钟", "sublabel": "DateTime.Today", "stage": 0, "row": 0, "tag": "默认值" },
+    { "id": "input", "type": "frontend", "label": "用户选择", "sublabel": "年/月/日下拉 · 日历点选", "stage": 0, "row": 2, "tag": "UI 事件" },
+    { "id": "init", "type": "backend", "label": "初始选中值", "sublabel": "窗口打开即定位今天", "stage": 1, "row": 0, "tag": "默认" },
+    { "id": "picker", "type": "backend", "label": "滑动窗口重建", "sublabel": "±5 · 月份环绕 · 夹紧当月", "stage": 1, "row": 2, "tag": "合法性" },
+    { "id": "selected", "type": "messagebus", "label": "SelectedDate", "sublabel": "DateTime 返回值", "stage": 2, "row": 1, "tag": "结果" },
+    { "id": "go", "type": "backend", "label": "GoToDate 调用", "sublabel": "CalendarView COM 接口", "stage": 3, "row": 1, "tag": "COM" },
+    { "id": "viewstate", "type": "database", "label": "日历视图状态", "sublabel": "当前显示月份/日期", "stage": 4, "row": 1, "tag": "持久于会话" }
+  ],
+  "flows": [
+    { "id": "today", "from": "clock", "to": "init", "label": "今天日期", "classification": "只读", "variant": "default" },
+    { "id": "seed", "from": "init", "to": "picker", "label": "默认选中", "classification": "初始值", "variant": "dashed", "labelAt": [315, 201] },
+    { "id": "events", "from": "input", "to": "picker", "label": "选择事件", "classification": "UI 输入", "variant": "emphasis" },
+    { "id": "validated", "from": "picker", "to": "selected", "label": "合法日期值", "classification": "窗口返回", "variant": "emphasis" },
+    { "id": "call", "from": "selected", "to": "go", "label": "date 参数", "classification": "跨 COM 边界", "variant": "emphasis" },
+    { "id": "locate", "from": "go", "to": "viewstate", "label": "视图定位", "classification": "Outlook 内部", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "主数据路径",
+      "items": [
+        "日期值从「输入源」经「加载项处理」「COM 调用」到达「视图状态」",
+        "每个环节只传递一个 DateTime，不落地任何持久化存储",
+        "SelectedDate 是加载项与 COM 之间唯一的返回通道"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "校验与反馈",
+      "items": [
+        "三下拉各显示选中值前后 5 项：月跨年环绕，日与当月天数求交集（闰年 2 月同样收窄）",
+        "点到边界项即以该项为锚点重建窗口，输入始终收敛到合法日期",
+        "跳转完成后日历重绘，用户在界面上看到定位结果"
+      ]
+    }
+  ]
+}

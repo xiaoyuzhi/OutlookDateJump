@@ -1,0 +1,152 @@
+<hc:Window x:Class="OutlookDateJump.DatePickerWindow"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:hc="https://handyorg.github.io/handycontrol"
+             Title="跳转到日期"
+             Width="380"
+             Height="450"
+             FontSize="14"
+             WindowStartupLocation="CenterOwner"
+             ResizeMode="NoResize"
+             ShowInTaskbar="False"
+             ShowNonClientArea="True"
+             ShowTitle="False"
+             NonClientAreaHeight="56"
+             NonClientAreaBackground="#F7F7F7"
+             Background="#FFFFFF">
+    <hc:Window.NonClientAreaContent>
+        <!-- 自绘标题栏：大图标 + 大标题。
+             ShowTitle="False" 已把 HandyControl 内置的小图标/小标题整块隐藏，
+             所以这里只剩一套标题，不会出现两个“跳转到日期”。 -->
+        <Grid x:Name="TitleBar" Margin="16,0,8,0" Background="Transparent"
+              MouseLeftButtonDown="TitleBar_Drag"
+              ToolTipService.ShowDuration="10000">
+            <Grid.ToolTip>
+                <ToolTip>
+                    <StackPanel Margin="6">
+                        <TextBlock Text="Outlook 日期跳转" FontWeight="SemiBold" FontSize="13" />
+                        <TextBlock Text="作者：xiaoxiaoyu（379008610@qq.com）" Margin="0,4,0,0" />
+                        <TextBlock Text="Copyright © 2026 xiaoxiaoyu" Margin="0,2,0,0" />
+                        <TextBlock Text="保留所有权利" Margin="0,0,0,0" />
+                    </StackPanel>
+                </ToolTip>
+            </Grid.ToolTip>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0"
+                    Width="40" Height="40"
+                    CornerRadius="8"
+                    Background="#FFFFFF"
+                    BorderBrush="#D8D8D8"
+                    BorderThickness="1"
+                    VerticalAlignment="Center">
+                <Image x:Name="ImgTitleIcon"
+                       Width="32" Height="32"
+                       RenderOptions.BitmapScalingMode="HighQuality" />
+            </Border>
+
+            <TextBlock Grid.Column="1"
+                       Text="跳转到日期"
+                       FontSize="20"
+                       FontWeight="SemiBold"
+                       Foreground="#1F1F1F"
+                       VerticalAlignment="Center"
+                       Margin="12,0,0,0" />
+        </Grid>
+    </hc:Window.NonClientAreaContent>
+
+    <Grid x:Name="RootGrid" Margin="14,4,14,10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- 年 / 月 / 日 三个下拉框（字号继承窗口的 14） -->
+        <Grid x:Name="TopRow" Grid.Row="0" Margin="0,0,0,6">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.6*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <hc:ComboBox x:Name="CmbYear"
+                         Grid.Column="0"
+                         Margin="0,0,6,0"
+                         HorizontalAlignment="Stretch"
+                         SelectionChanged="Cmb_SelectionChanged" />
+
+            <hc:ComboBox x:Name="CmbMonth"
+                         Grid.Column="1"
+                         Margin="0,0,6,0"
+                         HorizontalAlignment="Stretch"
+                         SelectionChanged="Cmb_SelectionChanged" />
+
+            <hc:ComboBox x:Name="CmbDay"
+                         Grid.Column="2"
+                         HorizontalAlignment="Stretch"
+                         SelectionChanged="Cmb_SelectionChanged" />
+        </Grid>
+
+        <!-- 日历：Viewbox 等比缩放铺满整个日历区域（加宽量由缩放吃掉，文字保持 15px 不变） -->
+        <Border Grid.Row="1"
+                x:Name="CalBorder"
+                Background="#FFFFFF"
+                BorderBrush="#E4E4E4"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="1">
+            <Viewbox x:Name="CalBox"
+                     Stretch="Uniform"
+                     StretchDirection="Both"
+                     HorizontalAlignment="Stretch"
+                     VerticalAlignment="Stretch">
+                <Calendar x:Name="Cal"
+                          SelectionMode="SingleDate"
+                          FontSize="14"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch"
+                          SelectedDatesChanged="Cal_SelectedDatesChanged"
+                          MouseDoubleClick="Cal_MouseDoubleClick" />
+            </Viewbox>
+        </Border>
+
+        <!-- 操作按钮：三列等分，不会把窗口撑宽 -->
+        <Grid x:Name="BottomRow" Grid.Row="2" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Button x:Name="BtnToday"
+                    Grid.Column="0"
+                    Content="今天"
+                    Height="32"
+                    Margin="0,0,6,0"
+                    HorizontalAlignment="Stretch"
+                    PreviewMouseLeftButtonDown="BtnToday_PreviewMouseDown"
+                    Click="BtnToday_Click" />
+
+            <Button x:Name="BtnOk"
+                    Grid.Column="1"
+                    Content="跳转"
+                    Height="32"
+                    Margin="0,0,6,0"
+                    HorizontalAlignment="Stretch"
+                    Click="BtnOk_Click" />
+
+            <Button x:Name="BtnCancel"
+                    Grid.Column="2"
+                    Content="取消"
+                    Height="32"
+                    HorizontalAlignment="Stretch"
+                    IsCancel="True" />
+        </Grid>
+    </Grid>
+</hc:Window>

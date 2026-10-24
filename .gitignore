@@ -1,0 +1,59 @@
+# ------------------------------------------------------------------
+# Build output (contains Microsoft assemblies, .dll / .pdb, cache)
+# Never commit these: they are machine-generated and may include
+# Microsoft redistributables that must not live in the source repo.
+# ------------------------------------------------------------------
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# ClickOnce publish / app.publish output
+app.publish/
+publish/
+
+# ------------------------------------------------------------------
+# Build & test logs (contain local absolute paths / machine names)
+# ------------------------------------------------------------------
+*.log
+*.render.log
+
+# ------------------------------------------------------------------
+# NuGet
+# ------------------------------------------------------------------
+packages/
+*.nupkg
+
+# ------------------------------------------------------------------
+# Local build overrides (code-signing certificate etc.) - never commit
+# ------------------------------------------------------------------
+local.props
+
+# ------------------------------------------------------------------
+# WorkBuddy dev workspace memory (internal notes, not for public)
+# ------------------------------------------------------------------
+.workbuddy/
+
+# ------------------------------------------------------------------
+# OS / IDE
+# ------------------------------------------------------------------
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ------------------------------------------------------------------
+# Dev artifacts not for publish (kept on disk pending cleanup review)
+# ------------------------------------------------------------------
+# 图标中间稿，无引用（待确认清理）
+Calendar2.png
+# 沙箱截图失败留下的空白图（待确认清理）
+tools/shot_*.png
+# archify 渲染收据（含本机绝对路径）
+*.result.json
+# archify 原子交付失败留下的恢复目录
+.archify-remove-*/
+# 自动化运行日志
+@AutomationLog.txt

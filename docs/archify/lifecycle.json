@@ -1,0 +1,69 @@
+{
+  "schema_version": 2,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "VSTO 加载项生命周期",
+    "locale": "zh-CN",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "output": "docs/diagrams/lifecycle.html"
+  },
+  "lanes": [
+    { "id": "main", "label": "启动与就绪" },
+    { "id": "session", "label": "点击会话" },
+    { "id": "recovery", "label": "异常路径" },
+    { "id": "terminal", "label": "退出" }
+  ],
+  "states": [
+    { "id": "installed", "type": "start", "label": "已安装", "sublabel": "setup.exe · vstolocal", "lane": "main", "col": 0, "step": "01", "tag": "部署" },
+    { "id": "trust", "type": "decision", "label": "信任校验", "sublabel": "清单签名 · InclusionList", "lane": "main", "col": 1, "step": "02", "tag": "安全门" },
+    { "id": "loading", "type": "active", "label": "程序集加载", "sublabel": "LoadBehavior=3", "lane": "main", "col": 2, "step": "03", "tag": "启动中" },
+    { "id": "ready", "type": "success", "label": "功能区就绪", "sublabel": "GetCustomUI 注册完成", "lane": "main", "col": 3, "step": "04", "tag": "可用" },
+    { "id": "idle", "type": "waiting", "label": "空闲", "sublabel": "等待点击", "lane": "main", "col": 4, "step": "05", "tag": "常驻" },
+    { "id": "dialog", "type": "active", "label": "弹窗中", "sublabel": "选择日期 · 模态", "lane": "session", "col": 3, "tag": "会话" },
+    { "id": "broken", "type": "failure", "label": "未信任 / 被禁用", "sublabel": "LoadBehavior 降级", "lane": "recovery", "col": 1, "tag": "异常" },
+    { "id": "exited", "type": "success", "label": "已卸载", "sublabel": "Outlook 退出 · 随进程结束", "lane": "terminal", "col": 4, "tag": "终态" }
+  ],
+  "transitions": [
+    { "from": "installed", "to": "trust" },
+    { "from": "trust", "to": "loading" },
+    { "from": "loading", "to": "ready" },
+    { "from": "ready", "to": "idle" },
+    { "from": "idle", "to": "dialog", "label": "点击按钮" },
+    { "from": "dialog", "to": "idle", "label": "跳转/取消" },
+    { "from": "trust", "to": "broken", "variant": "security", "label": "拒绝信任" },
+    { "from": "loading", "to": "broken", "variant": "security", "label": "加载失败" },
+    { "from": "broken", "to": "loading", "label": "重新信任后重试" },
+    { "from": "idle", "to": "exited", "variant": "dashed", "label": "Outlook 退出" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "启动链",
+      "items": [
+        "本机 |vstolocal：注册表 Manifest 直指 bin\\Release\\OutlookDateJump.vsto，不经 ClickOnce 缓存",
+        "Outlook 启动时按注册表 Manifest 触发 VSTO 运行时加载",
+        "ThisAddIn 就绪后在空闲时刻预热 WPF（Application + 窗口模板 JIT），消除首次点击卡顿",
+        "就绪后常驻空闲，随 Outlook 进程存活"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "会话循环",
+      "items": [
+        "点击按钮进入模态弹窗会话，跳转或取消都回到空闲",
+        "窗口可反复打开，WPF Application 常驻复用（OnExplicitShutdown）且不随窗口关闭",
+        "弹窗内零 COM 调用，跳转由宿主在关窗后调度",
+        "Outlook 退出即进程结束（Shutdown 事件不触发），无常驻态需要清理"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "异常与恢复",
+      "items": [
+        "首次信任提示被拒绝或加载失败会降级 LoadBehavior",
+        "重新信任清单后可回到加载状态，无需重装"
+      ]
+    }
+  ]
+}

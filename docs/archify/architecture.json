@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Outlook 日期跳转加载项 · 系统架构",
+    "locale": "zh-CN",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "output": "docs/diagrams/architecture.html"
+  },
+  "components": [
+    { "id": "setup", "type": "security", "label": "ClickOnce 安装包", "sublabel": "setup.exe · vstolocal", "pos": [40, 60], "size": [150, 60] },
+    { "id": "vsto", "type": "messagebus", "label": "VSTO 运行时", "sublabel": "清单加载 · 宿主注入", "pos": [250, 60], "size": [140, 60] },
+    { "id": "thisaddin", "type": "backend", "label": "ThisAddIn / Globals", "sublabel": "VSTO 入口 · Application 绑定", "pos": [480, 60], "size": [180, 60] },
+    { "id": "user", "type": "external", "label": "用户", "sublabel": "日历视图", "pos": [40, 270], "size": [100, 56] },
+    { "id": "ribbon", "type": "frontend", "label": "功能区按钮「跳转日期」", "sublabel": "Ribbon XML · TabCalendar", "pos": [220, 270], "size": [180, 64] },
+    { "id": "ribbon1", "type": "backend", "label": "Ribbon1 回调", "sublabel": "onAction / getEnabled / loadImage", "pos": [480, 270], "size": [180, 64] },
+    { "id": "wpf", "type": "frontend", "label": "DatePickerWindow", "sublabel": "三下拉滑动窗口 ±5 + 日历", "pos": [780, 270], "size": [180, 70] },
+    { "id": "outlook", "type": "external", "label": "经典 Outlook", "sublabel": "Explorer / CalendarView", "pos": [480, 450], "size": [180, 64] }
+  ],
+  "connections": [
+    { "id": "setup-vsto", "from": "setup", "to": "vsto", "label": "部署注册" },
+    { "id": "vsto-addin", "from": "vsto", "to": "thisaddin", "label": "宿主加载" },
+    { "id": "addin-ribbon1", "from": "thisaddin", "to": "ribbon1", "label": "提供回调" },
+    { "id": "user-ribbon", "from": "user", "to": "ribbon", "label": "点击" },
+    { "id": "ribbon-ribbon1", "from": "ribbon", "to": "ribbon1", "label": "onAction" },
+    { "id": "ribbon1-wpf", "from": "ribbon1", "to": "wpf", "label": "ShowDialog" },
+    { "id": "wpf-ribbon1", "from": "wpf", "to": "ribbon1", "label": "SelectedDate", "fromSide": "top", "toSide": "top", "via": [[870, 180], [570, 180]], "labelAt": [720, 168] },
+    { "id": "ribbon1-outlook", "from": "ribbon1", "to": "outlook", "label": "GoToDate" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "主链路",
+      "items": [
+        "用户点击按钮 → Ribbon1 回调 → 弹出 WPF 选择窗口 → COM 调用 GoToDate",
+        "按钮在日历「开始」选项卡的「跳转」组（UIA 实测落在「排列」与「管理日历」之间）",
+        "年/月/日三下拉为滑动窗口 ±5：只显示选中值前后各 5 项，选中恒居中，点到边界项即重锚",
+        "窗口关闭后以 SelectedDate 返回；首拍 GoToDate（带 Apply）成功即结束，失败才由 120ms Timer 兜底"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "宿主与部署",
+      "items": [
+        "本机 |vstolocal 部署：注册表 Manifest 直指 bin\\Release\\OutlookDateJump.vsto，不经 ClickOnce 缓存",
+        "setup.exe 等发布产物在 bin\\Release\\app.publish\\，仅供其他机器安装",
+        "VSTO 运行时负责信任校验、程序集加载与 Outlook Application 对象绑定",
+        "ThisAddIn 经 CreateRibbonExtensibilityObject 提供 Ribbon1，并在启动后空闲时刻预热 WPF"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "兼容性边界",
+      "items": [
+        "仅支持经典版 Outlook（Windows 桌面 COM 加载项通道）",
+        "「新的 Outlook」为网页内核，不支持 VSTO/COM 加载项",
+        "运行依赖 .NET Framework 4.7.2 与 VSTO Runtime 4.0（安装包自带引导）"
+      ]
+    }
+  ]
+}

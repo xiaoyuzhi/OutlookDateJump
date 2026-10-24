@@ -1,0 +1,65 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "「跳转日期」点击到日历跳转流程",
+    "locale": "zh-CN",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "output": "docs/diagrams/workflow.html"
+  },
+  "lanes": [
+    { "id": "ui", "label": "用户" },
+    { "id": "ribbon", "label": "功能区 / 回调" },
+    { "id": "dialog", "label": "选择窗口" },
+    { "id": "alt", "label": "取消路径", "variant": "exception" },
+    { "id": "outlook", "label": "Outlook 视图" }
+  ],
+  "phases": [
+    { "id": "trigger", "label": "触发", "fromCol": 0, "toCol": 1 },
+    { "id": "pick", "label": "选择日期", "fromCol": 2, "toCol": 3 },
+    { "id": "jump", "label": "执行跳转", "fromCol": 4, "toCol": 5 }
+  ],
+  "mainPath": ["user", "btn", "cb", "win", "confirm", "jump", "view"],
+  "nodes": [
+    { "id": "user", "lane": "ui", "col": 0, "type": "external", "label": "用户", "sublabel": "在日历视图", "width": 120 },
+    { "id": "btn", "lane": "ribbon", "col": 1, "type": "frontend", "label": "功能区按钮", "sublabel": "getEnabled 仅日历可用", "width": 140 },
+    { "id": "cb", "lane": "ribbon", "col": 2, "type": "backend", "label": "OnDateJump 回调", "sublabel": "取 ActiveExplorer", "width": 140 },
+    { "id": "win", "lane": "dialog", "col": 3, "type": "frontend", "label": "选择窗口", "sublabel": "滑动窗口 ±5 · 日历联动", "width": 140 },
+    { "id": "confirm", "lane": "dialog", "col": 4, "type": "backend", "label": "确认跳转", "sublabel": "SelectedDate 返回", "width": 130 },
+    { "id": "cancel", "lane": "alt", "col": 4, "type": "security", "label": "取消", "sublabel": "直接关闭窗口", "width": 130 },
+    { "id": "jump", "lane": "ribbon", "col": 5, "type": "backend", "label": "JumpToDate", "sublabel": "取 CurrentView", "width": 130 },
+    { "id": "view", "lane": "outlook", "col": 5, "type": "cloud", "label": "日历视图定位", "sublabel": "目标日期渲染", "width": 140 }
+  ],
+  "edges": [
+    { "id": "click", "from": "user", "to": "btn", "label": "点击", "variant": "default" },
+    { "id": "onaction", "from": "btn", "to": "cb", "label": "onAction", "variant": "emphasis" },
+    { "id": "show", "from": "cb", "to": "win", "label": "ShowDialog", "variant": "emphasis" },
+    { "id": "pick-date", "from": "win", "to": "confirm", "label": "点「跳转」", "variant": "emphasis" },
+    { "id": "give-up", "from": "win", "to": "cancel", "label": "点「取消」", "variant": "dashed", "role": "branch" },
+    { "id": "cancel-back", "from": "cancel", "to": "cb", "label": "直接返回", "variant": "dashed", "role": "error" },
+    { "id": "gotodate", "from": "confirm", "to": "jump", "label": "日期值", "variant": "emphasis" },
+    { "id": "render", "from": "jump", "to": "view", "label": "GoToDate", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "交互要点",
+      "items": [
+        "按钮仅在日历视图可用（getEnabled 检查文件夹类型）",
+        "三下拉各显示选中值前后 5 项、选中恒居中，点到边界项即以该项为锚点重建",
+        "月窗口跨年环绕（如 10 月 → 5..12,1,2,3），日窗口与当月天数求交集（31 日切 2 月自动收拢）",
+        "下拉与日历双向联动，双击日期格即确认"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "分支行为",
+      "items": [
+        "取消路径直接关闭窗口并返回，不做任何跳转",
+        "确认路径以 SelectedDate 继续，走 COM 调用完成定位",
+        "跳转首拍带 Apply()，成功即结束；仅失败才启动 120ms WinForms Timer 兜底（最多 10 拍）"
+      ]
+    }
+  ]
+}

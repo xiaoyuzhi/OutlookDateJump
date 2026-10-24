@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" onLoad="Ribbon_Load" loadImage="GetRibbonImage">
+  <ribbon>
+    <tabs>
+      <!--
+        实测结论（Outlook 特有）：
+        1) 组级 insertBeforeMso 对 GroupCalendarNew 生效，但并不会贴到「新建」组旁——
+           UIA 实测本组落在「排列」与「管理日历」之间（不影响使用，备注于此免得以讹传讹）。
+        2) <group label=""> 空组标题会导致整个组不被渲染（按钮完全消失）。
+           组标题必须给实文字，2 个字在 ~55px 宽的自定义组里不会竖排。
+        3) large 按钮的文字放在按钮自身 label（图标下方，标准大按钮布局）。
+        4) 按钮名不能叫「转到日期」—— 与 Outlook 内置的同名命令冲突，
+           用户会看到两个同名按钮。这里用唯一的「跳转日期」。
+      -->
+      <tab idMso="TabCalendar">
+        <group id="grpDateJump" label="跳转" autoScale="true" insertBeforeMso="GroupCalendarNew">
+          <button id="btnDateJump"
+                  label="跳转日期"
+                  size="large"
+                  image="CalendarIcon"
+                  onAction="OnDateJump"
+                  getEnabled="GetEnabled"
+                  screentip="跳转日期：弹出年月日选择面板"
+                  supertip="替代内置“转到日期”对话框：年份、月份均可直接点选，无需手动录入。" />
+        </group>
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>
