@@ -28,12 +28,16 @@
                         <TextBlock Text="作者：xiaoxiaoyu（379008610@qq.com）" Margin="0,4,0,0" />
                         <TextBlock Text="Copyright © 2026 xiaoxiaoyu" Margin="0,2,0,0" />
                         <TextBlock Text="保留所有权利" Margin="0,0,0,0" />
+                        <TextBlock x:Name="TxtVersionTip"
+                                   Margin="0,6,0,0"
+                                   FontWeight="SemiBold" />
                     </StackPanel>
                 </ToolTip>
             </Grid.ToolTip>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0"
@@ -55,6 +59,18 @@
                        Foreground="#1F1F1F"
                        VerticalAlignment="Center"
                        Margin="12,0,0,0" />
+
+            <!-- 版本号（语义化版本）：常驻标题栏右侧，便于确认当前安装的版本。
+                 注意：这里刻意不用 x:Static 绑定 —— x:Static 会在 XAML 解析期强制
+                 初始化 code-behind 类型，与正在进行的 InitializeComponent() 形成循环，
+                 可能抛 TypeInitializationException 导致 Outlook 判定加载项崩溃。
+                 版本号改由代码在构造时赋值（见 DatePickerWindow.xaml.cs）。 -->
+            <TextBlock x:Name="TxtVersion"
+                       Grid.Column="2"
+                       VerticalAlignment="Center"
+                       FontSize="12"
+                       Foreground="#8A8A8A"
+                       Margin="8,0,4,0" />
         </Grid>
     </hc:Window.NonClientAreaContent>
 

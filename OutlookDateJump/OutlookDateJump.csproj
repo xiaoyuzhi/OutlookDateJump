@@ -22,8 +22,30 @@
     <!-- 默认不签名：公开仓库 / 贡献者的机器上没有发布证书，强制签名会直接构建失败。
          本机若要签名，请在本目录创建 local.props（已被 .gitignore 忽略）覆盖这两项。 -->
     <SignManifests>false</SignManifests>
-    <ApplicationRevision>5</ApplicationRevision>
-    <ApplicationVersion>1.0.0.0</ApplicationVersion>
+    <!-- ===================================================================
+         语义化版本（semver.org）：仓库根的 VERSION 文件是唯一事实来源。
+         格式：MAJOR.MINOR.PATCH[-预发布标识]，例如 1.4.0 / 1.4.0-rc.1。
+         这里在「求值期」直接读文件并拆解，避免 csproj / AssemblyInfo / 打包脚本
+         三处各写一份版本号而互相漂移。
+         - SemVerFull  : 完整字符串（1.4.0 或 1.4.0-rc.1），用于展示与 InformationalVersion
+         - SemVerMajor/Minor/Patch : 三个数字段
+         - ApplicationVersion : ClickOnce 要求 4 段数字，故用 MAJOR.MINOR.PATCH.0
+         - ApplicationRevision：ClickOnce 的“修订号”，必须单调递增才能触发重新部署，
+                                由 build_publish.cmd 从 tools\revision.txt 递增后经命令行传入。
+         =================================================================== -->
+    <VersionFile>$(MSBuildThisFileDirectory)..\VERSION</VersionFile>
+    <SemVerFull Condition="Exists('$(VersionFile)')">$([System.IO.File]::ReadAllText('$(VersionFile)').Trim())</SemVerFull>
+    <SemVerFull Condition="'$(SemVerFull)' == ''">0.0.0</SemVerFull>
+    <SemVerCore>$([System.String]::Copy('$(SemVerFull)').Split('-')[0])</SemVerCore>
+    <SemVerMajor>$([System.String]::Copy('$(SemVerCore)').Split('.')[0])</SemVerMajor>
+    <SemVerMinor>$([System.String]::Copy('$(SemVerCore)').Split('.')[1])</SemVerMinor>
+    <SemVerPatch>$([System.String]::Copy('$(SemVerCore)').Split('.')[2])</SemVerPatch>
+    <SemVerPrerelease Condition="$(SemVerFull.Contains('-'))">$([System.String]::Copy('$(SemVerFull)').Split('-')[1])</SemVerPrerelease>
+    <AssemblyVersion>$(SemVerMajor).$(SemVerMinor).$(SemVerPatch).0</AssemblyVersion>
+    <FileVersion>$(SemVerMajor).$(SemVerMinor).$(SemVerPatch).0</FileVersion>
+    <InformationalVersion>$(SemVerFull)</InformationalVersion>
+    <ApplicationRevision>1</ApplicationRevision>
+    <ApplicationVersion>$(SemVerMajor).$(SemVerMinor).$(SemVerPatch).0</ApplicationVersion>
     <PublishUrl>publish\</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Disk</InstallFrom>
@@ -163,6 +185,38 @@
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
     <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
   </PropertyGroup>
+  <!-- ===================================================================
+       生成版本属性文件：把 VERSION（语义化版本）解析结果写进程序集元数据。
+       放在 obj\ 下（可再生、不进版本库），并在编译前生成。
+       用 WriteCodeFragment 任务（专为程序集属性设计），避免字符串转义踩坑。
+       =================================================================== -->
+  <PropertyGroup>
+    <!-- 用绝对路径，避免 compile_check.cmd 覆盖 OutputPath 时 IntermediateOutputPath
+         变成相对路径而导致编译找不到生成文件。 -->
+    <GeneratedVersionAssemblyInfoDir>$(MSBuildProjectDirectory)\obj\Generated\</GeneratedVersionAssemblyInfoDir>
+    <GeneratedVersionAssemblyInfoFile>$(GeneratedVersionAssemblyInfoDir)VersionAssemblyInfo.g.cs</GeneratedVersionAssemblyInfoFile>
+  </PropertyGroup>
+  <Target Name="GenerateVersionAssemblyInfo" BeforeTargets="BeforeCompile;CoreCompile">
+    <MakeDir Directories="$(GeneratedVersionAssemblyInfoDir)" />
+    <ItemGroup>
+      <AssemblyAttribute Include="System.Reflection.AssemblyVersionAttribute">
+        <_Parameter1>$(AssemblyVersion)</_Parameter1>
+      </AssemblyAttribute>
+      <AssemblyAttribute Include="System.Reflection.AssemblyFileVersionAttribute">
+        <_Parameter1>$(FileVersion)</_Parameter1>
+      </AssemblyAttribute>
+      <AssemblyAttribute Include="System.Reflection.AssemblyInformationalVersionAttribute">
+        <_Parameter1>$(InformationalVersion)</_Parameter1>
+      </AssemblyAttribute>
+    </ItemGroup>
+    <WriteCodeFragment AssemblyAttributes="@(AssemblyAttribute)"
+                      Language="C#"
+                      OutputFile="$(GeneratedVersionAssemblyInfoFile)" />
+    <ItemGroup>
+      <Compile Include="$(GeneratedVersionAssemblyInfoFile)" />
+      <FileWrites Include="$(GeneratedVersionAssemblyInfoFile)" />
+    </ItemGroup>
+  </Target>
   <!-- 本机专用覆盖（代码签名证书指纹等）。文件不存在时静默跳过，不影响开源构建。 -->
   <Import Project="local.props" Condition="Exists('local.props')" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

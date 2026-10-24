@@ -34,14 +34,49 @@
 
 ---
 
+## 版本号（语义化版本）
+
+本项目遵循 [语义化版本 2.0.0](https://semver.org/lang/zh-CN/)（SemVer）。
+
+**唯一事实来源**：仓库根目录的 [`VERSION`](VERSION) 文件，内容形如 `1.4.0` 或 `1.4.0-rc.1`。
+改版本号**只需改这一个文件**，下列各处会自动同步：
+
+| 位置 | 取值 | 说明 |
+|------|------|------|
+| `AssemblyVersion` | `1.4.0.0` | ClickOnce 要求 4 段数字，故补 `.0` |
+| `AssemblyFileVersion` | `1.4.0.0` | 同上 |
+| `AssemblyInformationalVersion` | `1.4.0`（含预发布标识） | 弹窗「关于」面板显示的就是它 |
+| ClickOnce `ApplicationVersion` | `1.4.0.0` | 决定 `Application Files\OutlookDateJump_1_4_0_0\` 目录名 |
+| 安装包文件名 | `OutlookDateJump-v1.4.0-Setup.zip` | 绿色版同理带 `-Portable` |
+| 包内 `VERSION` 文件 | `1.4.0` | 便于使用者确认版本 |
+
+版本号如何被解析：csproj 在**求值期**用 MSBuild 的 `System.IO.File::ReadAllText` 读取
+`VERSION` 并 `Split` 成三段（见 `OutlookDateJump.csproj` 的 `SemVerMajor/Minor/Patch`），
+再由 `GenerateVersionAssemblyInfo` 目标把程序集属性生成到 `obj\Generated\` 下——
+所以**不存在「csproj 改了一处、AssemblyInfo 忘了改」**的漂移问题。
+
+> ⚠️ 与 `tools/revision.txt` 区分：那个文件是 **ClickOnce 部署修订号**（单调递增的构建计数），
+> 只用于告诉 ClickOnce「这是新构建，请重新部署」，**不是版本号**，不对外展示。
+
+### 何时改哪一段
+
+| 改动 | SemVer 段位 | 示例 |
+|------|-------------|------|
+| 修复缺陷、不破坏兼容 | `PATCH` | `1.4.0` → `1.4.1` |
+| 新增功能、向后兼容 | `MINOR` | `1.4.0` → `1.5.0` |
+| 破坏性变更 | `MAJOR` | `1.4.0` → `2.0.0` |
+| 发布预演版 | 预发布标识 | `1.5.0-rc.1`（正式版 `1.5.0` 之前） |
+
+---
+
 ## 安装与发布
 
 项目提供两个可直接分发的版本，由 `tools/make_packages.py` 一键产出（`dist/` 目录）：
 
 | 版本 | 包名 | 内容 | 适用场景 |
 |------|------|------|----------|
-| **安装版** | `dist/OutlookDateJump-<ver>-Setup.zip` | ClickOnce `setup.exe` + `.vsto` + `Application Files` + 自签证书 `.cer` + 使用说明 | 分发给普通用户，走标准安装/卸载流程 |
-| **绿色版** | `dist/OutlookDateJump-<ver>-Portable.zip` | 免安装目录：`|vstolocal` 清单 + DLL + 注册/卸载脚本 + 使用说明 | 免管理员权限、免安装、目录可整体搬移 |
+| **安装版** | `dist/OutlookDateJump-v<ver>-Setup.zip` | ClickOnce `setup.exe` + `.vsto` + `Application Files` + 自签证书 `.cer` + 使用说明 | 分发给普通用户，走标准安装/卸载流程 |
+| **绿色版** | `dist/OutlookDateJump-v<ver>-Portable.zip` | 免安装目录：`|vstolocal` 清单 + DLL + 注册/卸载脚本 + 使用说明 | 免管理员权限、免安装、目录可整体搬移 |
 
 ### 安装版（ClickOnce）
 
@@ -60,14 +95,18 @@
 | 卸载 | 运行 `Unregister-ODJ.ps1`，再删除整个文件夹 |
 | 生效 | 注册后需**完全退出**并重启 Outlook |
 | 特点 | 只写 `HKCU`，无需管理员权限；清单用相对 codebase，整个目录可搬到任意路径；移动后重跑注册脚本即可 |
+| 信任清单 | 注册脚本会自动把 `.vsto` 加入 VSTO 受信任清单（`HKCU\Software\Microsoft\VSTO\Security\Inclusion`）。**缺这一项 Office 会静默拒绝加载**——功能区没有按钮、事件 ID 45 也不列出该加载项，是「装上了却不生效」最常见的原因。脚本内附 `vsto_inclusion.py` 负责此事（需要 Python） |
 
 > 执行策略提示：若直接运行脚本被系统 ExecutionPolicy 拦下，用上面带 `-ExecutionPolicy Bypass` 的命令即可，无需改系统全局设置。
+>
+> 目录名保持固定（`OutlookDateJump-Portable`）而不含版本号：VSTO 的受信任清单按**清单路径**记录，
+> 目录名每次随版本变化会让旧的白名单条目失效。版本号体现在 zip 文件名与包内的 `VERSION` 文件里。
 
 ### 构建与打包
 
 | 操作 | 方式 |
 |------|------|
-| 重新构建 + ClickOnce 发布 | 双击 `OutlookDateJump/build_publish.cmd`（自动定位 MSBuild、递增 `tools/revision.txt`，无需开发者命令提示符） |
+| 重新构建 + ClickOnce 发布 | 双击 `OutlookDateJump/build_publish.cmd`（自动定位 MSBuild、递增 `tools/revision.txt` 部署修订号，无需开发者命令提示符） |
 | 生成两个分发包 | `python tools/make_packages.py`（需先跑过 build_publish.cmd） |
 | 编译检查 | `tools/compile_check.cmd`（输出到 `obj\scratch\`，不触碰被 Outlook 锁定的 `bin\Release`） |
 | 发布产物 | `OutlookDateJump/bin/Release/app.publish/`（setup.exe + OutlookDateJump.vsto） |
@@ -278,13 +317,17 @@ OutlookSelectDate/
 │   ├── build_publish.cmd      一键构建 + ClickOnce 发布（正式产物）
 │   ├── compile_check.cmd      编译检查（输出到 obj\scratch，不碰 bin\Release）
 │   ├── make_packages.py       产出「安装版 + 绿色版」两个分发 zip（dist/）
+│   ├── vsto_inclusion.py      VSTO 受信任清单（Inclusion List）增删工具
 │   ├── make_icon.ps1          由 Calendar.png 生成 64×64 CalendarIcon.png
 │   ├── verify_uia.py          无头验证：UIA 触发按钮 + 实测弹窗
 │   ├── verify_combos.py       无头验证：三下拉滑动窗口 ±5 行为
 │   ├── verify_calendar_ribbon.py  无头验证：切日历模块 -> 找按钮 -> 开弹窗量尺寸
+│   ├── verify_version_label.py    无头验证：弹窗标题栏显示的版本号 == VERSION 文件
+│   ├── close_leftover_dialogs.py  清理残留的 Outlook 模态对话框（挡住后续测试）
 │   ├── diag_ribbon.py         诊断：列出功能区按钮 / 命中「跳转日期」
 │   ├── diag_tabs.py           诊断：列出功能区选项卡与模块入口
-│   └── revision.txt           构建版本号（ASCII 文件，递增）
+│   └── revision.txt           ClickOnce 部署修订号（单调递增的构建计数，非版本号）
+├── VERSION                    语义化版本号（SemVer，唯一事实来源，如 1.4.0）
 ├── OutlookDateJump.sln        解决方案
 ├── poc_gotodate.ps1           GoToDate 早期概念验证脚本
 ├── docs/

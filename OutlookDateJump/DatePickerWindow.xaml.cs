@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -16,6 +17,33 @@ namespace OutlookDateJump
     {
         public DateTime? SelectedDate { get; private set; }
 
+        /// <summary>
+        /// 当前版本号（语义化版本 semver.org）。
+        /// 取自程序集的 AssemblyInformationalVersion —— 该属性在构建时依据仓库根
+        /// VERSION 文件生成（见 csproj 的 GenerateVersionAssemblyInfo 目标），
+        /// 因此界面显示的版本与安装包、Git tag 始终一致。
+        /// </summary>
+        public static string AppVersion
+        {
+            get
+            {
+                try
+                {
+                    var asm = typeof(DatePickerWindow).Assembly;
+                    var info = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+                    if (info != null && !string.IsNullOrEmpty(info.InformationalVersion))
+                    {
+                        return info.InformationalVersion;
+                    }
+                    return asm.GetName().Version.ToString();
+                }
+                catch
+                {
+                    return "unknown";
+                }
+            }
+        }
+
         // 防止下拉框与日历互相触发事件造成死循环
         private bool _busy;
 
@@ -29,6 +57,19 @@ namespace OutlookDateJump
         public DatePickerWindow(DateTime initial)
         {
             InitializeComponent();
+
+            // 版本号由代码赋值（不用 x:Static：那会在 XAML 解析期强制初始化
+            // code-behind 类型，与 InitializeComponent 形成循环，可能导致加载项崩溃）。
+            try
+            {
+                TxtVersion.Text = "v" + AppVersion;
+                TxtVersionTip.Text = "版本 v" + AppVersion;
+            }
+            catch
+            {
+                // 版本显示失败不影响弹窗其它功能
+            }
+
             LoadTitleIcon();
             InitCombos(initial);
 
