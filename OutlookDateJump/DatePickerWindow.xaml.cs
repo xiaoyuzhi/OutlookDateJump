@@ -78,6 +78,19 @@ namespace OutlookDateJump
             CmbMonth.DropDownOpened += (s, e) => CenterSelectedInDropDown(CmbMonth);
             CmbDay.DropDownOpened += (s, e) => CenterSelectedInDropDown(CmbDay);
 
+            // 下拉开着时接管鼠标滚轮：弹层能滚（小屏列表超高）就滚内容；
+            // 一屏放得下（滑动窗口 11 项全部可见、无可滚内容）就把滚轮转成
+            // 「切换选中值」，向上=上一个、向下=下一个，可连续滚到任意年/月/日。
+            AddHandler(UIElement.PreviewMouseWheelEvent,
+                new System.Windows.Input.MouseWheelEventHandler(Win_PreviewMouseWheel), true);
+
+            // 下拉弹层提速：HandyControl 的 ComboBox 模板里 Popup 自带 Fade 渐显动画
+            // + DropShadowEffect 投影，在 Outlook 进程中叠加后弹层出现明显迟滞。
+            // 模板加载完成后立即移除这两者，让下拉即时出现。
+            CmbYear.Loaded += (s, e) => SpeedUpDropDown(CmbYear);
+            CmbMonth.Loaded += (s, e) => SpeedUpDropDown(CmbMonth);
+            CmbDay.Loaded += (s, e) => SpeedUpDropDown(CmbDay);
+
             // 窗口级鼠标兜底（handledEventsToo）：即使鼠标被日历控件捕获、
             // 事件被别的控件标记 Handled，窗口这里依然能看到每一次按下/抬起，
             // 从而可以按物理坐标判断指针是否压在「跳转」上，保证一次点击即生效。
@@ -590,6 +603,113 @@ namespace OutlookDateJump
             catch
             {
                 // ignore
+            }
+        }
+
+        /// <summary>
+        /// 窗口隧道阶段的滚轮接管：任一下拉开着时优先滚动弹层内容；
+        /// 若列表一屏放得下（滑动窗口仅 11 项，ScrollableHeight=0、无可滚内容，
+        /// 这正是“滚轮滚不动”的真正原因），则把滚轮转成「切换选中值」——
+        /// 向上=上一个、向下=下一个，选中变化经 Cmb_SelectionChanged 以新值为锚
+        /// 重建窗口（选中恒居中），于是滚轮可连续转到任意年/月/日。
+        /// </summary>
+        private void Win_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+        {
+            try
+            {
+                var combo = CmbYear.IsDropDownOpen ? CmbYear
+                          : CmbMonth.IsDropDownOpen ? CmbMonth
+                          : CmbDay.IsDropDownOpen ? CmbDay
+                          : null;
+                if (combo == null)
+                {
+                    return; // 没有下拉开着：不干预默认行为（日历等区域照常）
+                }
+
+                // 列表超出弹层高度（小屏 MaxDropDownHeight 受限）时：滚内容
+                var sv = FindDropDownScrollViewer(combo);
+                if (sv != null && sv.ScrollableHeight > 0)
+                {
+                    // 滚轮向上（Delta>0）→ 滚动偏移减小
+                    sv.ScrollToVerticalOffset(sv.VerticalOffset - e.Delta);
+                    e.Handled = true;
+                    Trace("wheel scroll " + combo.Name + " offset=" + sv.VerticalOffset.ToString("F0") + " delta=" + e.Delta);
+                    return;
+                }
+
+                // 一屏放得下、无可滚内容：滚轮切换选中值
+                int idx = combo.SelectedIndex;
+                if (idx < 0)
+                {
+                    return;
+                }
+
+                int next = idx + (e.Delta > 0 ? -1 : 1);
+                if (next < 0 || next >= combo.Items.Count)
+                {
+                    return;
+                }
+
+                combo.SelectedIndex = next;
+                e.Handled = true;
+                Trace("wheel change " + combo.Name + " -> " + (combo.SelectedItem ?? "null") + " delta=" + e.Delta);
+            }
+            catch
+            {
+                // 滚轮接管失败不致命：退回默认行为
+            }
+        }
+
+        /// <summary>
+        /// 取下拉弹层内部的 ScrollViewer（HandyControl 模板：PART_Popup → Border → ScrollViewer）。
+        /// </summary>
+        private ScrollViewer FindDropDownScrollViewer(System.Windows.Controls.ComboBox combo)
+        {
+            try
+            {
+                var popup = combo.Template?.FindName("PART_Popup", combo)
+                            as System.Windows.Controls.Primitives.Popup;
+                if (popup == null || popup.Child == null)
+                {
+                    return null;
+                }
+
+                return FindVisualChild<ScrollViewer>(popup.Child);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 下拉弹层提速：HandyControl 的 ComboBox 模板给 Popup 配了
+        /// PopupAnimation=Fade（系统级渐显，约 200ms）和 DropShadowEffect 投影
+        /// （分层窗口上逐帧模糊渲染），两者叠加即“下拉反应慢”。
+        /// 在模板加载后（Loaded，弹层尚未打开）直接移除，弹层即时出现。
+        /// </summary>
+        private static void SpeedUpDropDown(System.Windows.Controls.ComboBox combo)
+        {
+            try
+            {
+                var popup = combo.Template?.FindName("PART_Popup", combo)
+                            as System.Windows.Controls.Primitives.Popup;
+                if (popup == null)
+                {
+                    return; // 模板非 HandyControl（回退系统样式）：无需处理
+                }
+
+                popup.PopupAnimation = System.Windows.Controls.Primitives.PopupAnimation.None;
+
+                if (popup.Child is Border border)
+                {
+                    border.Effect = null;              // 去投影（原 Margin 是给投影留的余量）
+                    border.Margin = new Thickness(0);  // 弹层与下拉框边缘对齐，不留投影空隙
+                }
+            }
+            catch
+            {
+                // 提速失败不影响下拉功能
             }
         }
 
